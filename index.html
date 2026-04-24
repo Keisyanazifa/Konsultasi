@@ -1,0 +1,592 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>HEALTY POINT Super App - RPL Prototype</title>
+   <style>
+    :root { --primary: #e52d27; --bg: #f8f9fa; --text-gray: #757575; scroll-behavior: smooth; }
+    body { font-family: 'Segoe UI', sans-serif; margin: 0; background: white; padding-bottom: 80px; color: #333; overflow-x: hidden; }
+    header { background: white; padding: 15px 20px; display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #eee; position: sticky; top: 0; z-index: 100; min-height: 60px; }
+    .brand { color: var(--primary); font-weight: bold; font-size: 1.2rem; }
+    .back-btn { border: none; background: none; font-size: 20px; cursor: pointer; padding: 0; margin-right: 10px; color: #333; }
+    .wallet-box { background: linear-gradient(135deg, #e52d27, #ff5e57); margin: 15px; padding: 20px; border-radius: 15px; color: white; box-shadow: 0 4px 12px rgba(229, 45, 39, 0.2); cursor: pointer; }
+    .main-menu { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; padding: 10px 15px; text-align: center; }
+    .menu-icon { background: #fff5f5; width: 50px; height: 50px; border-radius: 12px; display: flex; align-items: center; justify-content: center; margin: 0 auto 8px; font-size: 24px; }
+    .page { display: none; padding: 0 15px; animation: fadeIn 0.3s; }
+    @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+    .active { display: block; }
+    .card { display: flex; align-items: center; padding: 15px; background: white; border-radius: 12px; margin-bottom: 12px; border: 1px solid #f0f0f0; transition: 0.3s; }
+    .doc-profile { width: 50px; height: 50px; border-radius: 50%; background: #f4f4f4; margin-right: 12px; display: flex; align-items: center; justify-content: center; font-size: 24px; }
+    .doc-info { flex: 1; }
+    .doc-info b { font-size: 14px; display: block; }
+    .doc-info small { color: var(--text-gray); font-size: 12px; }
+    .btn-chat { background: white; border: 1px solid var(--primary); color: var(--primary); padding: 5px 10px; border-radius: 6px; font-weight: bold; font-size: 11px; cursor: pointer; }
+    nav { position: fixed; bottom: 0; width: 100%; background: white; display: flex; justify-content: space-around; border-top: 1px solid #eee; padding: 12px 0; z-index: 100; }
+    nav div { font-size: 11px; color: #999; text-align: center; cursor: pointer; }
+    .active-nav { color: var(--primary); font-weight: bold; }
+
+    /* PERBAIKAN CHATBOX BIAR BISA DI-SCROLL */
+    #chatBox { 
+        height: calc(100vh - 160px); /* Membatasi tinggi area chat */
+        overflow-y: scroll;         /* Paksa muncul scrollbar saat penuh */
+        padding: 15px; 
+        display: flex; 
+        flex-direction: column; 
+        background: #f9f9f9; 
+        scroll-behavior: smooth;
+        -webkit-overflow-scrolling: touch; /* Biar scroll di HP mulus */
+    }
+    
+    /* Biar ada jarak di paling bawah chat supaya gak mepet input */
+    #chatBox::after {
+        content: "";
+        min-height: 20px;
+        display: block;
+    }
+
+    .msg { padding: 10px 15px; margin: 8px 0; border-radius: 15px; max-width: 80%; font-size: 14px; line-height: 1.4; }
+    .me { background: var(--primary); color: white; align-self: flex-end; border-bottom-right-radius: 2px; }
+    .bot { background: white; border: 1px solid #ddd; align-self: flex-start; border-bottom-left-radius: 2px; color: #333; }
+    
+    .modal { display:none; position:fixed; inset:0; background:rgba(0,0,0,0.5); justify-content:center; align-items:center; z-index:2000; }
+    .modal-box { background:white; padding:20px; border-radius:15px; width:85%; max-width:350px; }
+    .modal-box button { width: 100%; padding: 12px; margin-top: 10px; border-radius: 8px; border: 1px solid #ddd; background: white; font-weight: bold; cursor: pointer; }
+</style>
+</head>
+<body>
+
+<div id="notif" style="position:fixed; top:20px; left:50%; transform:translateX(-50%); background:#333; color:white; padding:10px 20px; border-radius:20px; display:none; z-index:3000; font-size:12px;"></div>
+
+<div id="login" style="position:fixed; inset:0; background:white; padding:100px 20px; text-align:center; z-index:2500;">
+    <h2 style="color:var(--primary);">HEALTY POINT 🏥</h2>
+    <input id="uName" placeholder="Nama Anda..." style="width:80%; padding:15px; border-radius:12px; border:1px solid #ccc; margin-bottom:20px;">
+    <button onclick="loginUser()" style="width:85%; background:var(--primary); color:white; border:none; padding:15px; border-radius:12px; font-weight:bold;">Masuk</button>
+</div>
+
+<header id="mainHeader">
+    <div class="brand">HEALTY POINT 🏥</div>
+    <span id="labelUser" style="font-size:12px; font-weight:600; background: #eee; padding: 4px 10px; border-radius: 10px;"></span>
+</header>
+
+<div id="home" class="page active">
+    <div class="wallet-box" onclick="openTopUp()">
+        <small>Saldo</small>
+        <h3 id="saldoVal">Rp 150.000</h3>
+        <small>⚡ Klik untuk Isi Saldo</small>
+    </div>
+    <div class="main-menu">
+		<div class="menu-item" onclick="navigate('csPage')"><div class="menu-icon">💬</div><span>Bantuan</span></div>
+        <div class="menu-item" onclick="navigate('shop')"><div class="menu-icon">💊</div><span>Toko</span></div>
+        <div class="menu-item" onclick="navigate('hospital')"><div class="menu-icon">🏢</div><span>RS</span></div>
+        <div class="menu-item" onclick="navigate('lab')"><div class="menu-icon">🧪</div><span>Lab</span></div>
+    </div>
+    <h4 style="padding-left:15px;">Daftar Dokter</h4>
+    <div id="listDokter"></div>
+</div>
+
+<div id="shop" class="page">
+    <header style="padding: 15px 0;"><button class="back-btn" onclick="navigate('home')">←</button><b>Apotik</b></header>
+    <div id="listObat"></div>
+</div>
+
+<div id="hospital" class="page">
+    <header style="padding: 15px 0;"><button class="back-btn" onclick="navigate('home')">←</button><b>Rumah Sakit</b></header>
+    <div id="listRS"></div>
+</div>
+
+<div id="lab" class="page">
+    <header style="padding: 15px 0;"><button class="back-btn" onclick="navigate('home')">←</button><b>Layanan Laboratorium</b></header>
+    <div id="listLabs"></div>
+</div>
+
+<div id="history" class="page">
+    <header style="padding: 15px 0;"><button class="back-btn" onclick="navigate('home')">←</button><b>Riwayat Transaksi</b></header>
+    <div id="listHistory"></div>
+</div>
+
+<div id="csPage" class="page">
+    <header style="padding: 15px 0;">
+        <button class="back-btn" onclick="navigate('home')">←</button>
+        <b>Pusat Bantuan (CS)</b>
+    </header>
+    
+    <div style="text-align: center; padding: 20px;">
+        <div style="font-size: 50px;">🎧</div>
+        <h4>Ada yang bisa kami bantu?</h4>
+        <p style="font-size: 13px; color: #757575;">Layanan CS kami tersedia 24/7 untuk membantu masalah kesehatan atau transaksi Anda.</p>
+    </div>
+
+    <div class="card" onclick="startCSChat('Kendala Transaksi')">
+        <div class="doc-info">
+            <b>Kendala Transaksi & Saldo</b>
+            <small>Masalah top up atau pembayaran</small>
+        </div>
+        <button class="btn-chat">Chat</button>
+    </div>
+
+    <div class="card" onclick="startCSChat('Info Layanan')">
+        <div class="doc-info">
+            <b>Informasi Layanan</b>
+            <small>Tanya seputar RS, Dokter, & Obat</small>
+        </div>
+        <button class="btn-chat">Chat</button>
+    </div>
+</div>
+
+<div id="chat" class="page" style="padding:0; position:fixed; inset:0; background:white; z-index:500;">
+    <header><button class="back-btn" onclick="navigate('home')">←</button><b id="docTitle"></b></header>
+    <div id="chatBox"></div>
+    <div style="position: fixed; bottom: 0; width: 100%; padding: 12px; background: white; display: flex; gap: 8px; border-top: 1px solid #eee;">
+        <input id="chatIn" placeholder="Ketik pesan..." style="flex:1; border:1px solid #ddd; padding:10px; border-radius:20px;">
+        <button onclick="send()" style="background:var(--primary); color:white; border:none; padding:10px 15px; border-radius:20px;">Kirim</button>
+    </div>
+</div>
+
+<nav id="bottomNav">
+    <div onclick="navigate('home')" id="n-home" class="active-nav">🏠<br>Home</div>
+    <div onclick="navigate('shop')" id="n-shop">💊<br>Toko</div>
+    <div onclick="navigate('history')" id="n-history">📜<br>Riwayat</div>
+    <div onclick="logout()">👤<br>Keluar</div>
+</nav>
+
+<div id="topupModal" class="modal"><div class="modal-box"><h3>Top Up Saldo</h3><button onclick="addSaldo(50000)">Rp 50.000</button><button onclick="addSaldo(100000)">Rp 100.000</button><button onclick="closeModal('topupModal')">Batal</button></div></div>
+<div id="rsModal" class="modal"><div class="modal-box" id="rsContent"></div></div>
+
+<script>
+let saldo = 150000;
+let orders = JSON.parse(localStorage.getItem("orders") || "[]");
+
+const docs = [
+    // Spesialis Penyakit Dalam (Internist)
+    {n:"Dr. Aqsal, Sp.PD", s:"Penyakit Dalam", p:60000, i:"👨‍⚕️"},
+    {n:"Dr. Felisa, Sp.PD", s:"Penyakit Dalam", p:50000, i:"👩‍⚕️"},
+    
+    // Spesialis Bedah
+    {n:"Dr. Mukhsal, Sp.B", s:"Bedah Umum", p:70000, i:"👨‍⚕️"},
+    {n:"Dr. Faisal, Sp.B", s:"Bedah Umum", p:70000, i:"👨‍⚕️"},
+    
+    // Spesialis Anak
+    {n:"Dr. Nailul Muna, Sp.A", s:"Anak", p:50000, i:"👩‍⚕️"},
+    {n:"Dr. Putri Nayla, Sp.A", s:"Anak", p:50000, i:"👩‍⚕️"},
+	{n:"Dr. Alfi, Sp.A", s:"Anak", p:50000, i:"👩‍⚕️"},
+    
+    // Spesialis Kandungan (Obgyn)
+    {n:"Dr. Keisya, Sp.OG", s:"Kandungan", p:55000, i:"👩‍⚕️"},
+    {n:"Dr. Fitra, Sp.OG", s:"Kandungan", p:55000, i:"👨‍⚕️"},
+    
+    // Spesialis Jantung & Paru
+    {n:"Dr. Shafira, Sp.JP", s:"Jantung", p:80000, i:"👩‍⚕️"},
+    {n:"Dr. Andhika, Sp.P", s:"Paru", p:60000, i:"👨‍⚕️"},
+    
+    // Spesialis Saraf & Jiwa
+    {n:"Dr. Amelia, Sp.S", s:"Saraf", p:65000, i:"👩‍⚕️"},
+    {n:"Dr. Miftahul, Sp.KJ", s:"Jiwa", p:60000, i:"👨‍⚕️"},
+    
+    // Spesialis Mata, THT, Kulit
+    {n:"Dr. Shinta, Sp.M", s:"Mata", p:45000, i:"👩‍⚕️"},
+    {n:"Dr. Aidil, Sp.THT", s:"THT", p:45000, i:"👨‍⚕️"},
+    {n:"Dr. Nadhira, Sp.KK", s:"Kulit & Kelamin", p:55000, i:"👩‍⚕️"},
+    
+    // Spesialis Lainnya (Urologi, Ortopedi, Gigi)
+    {n:"Dr. Reandra, Sp.U", s:"Urologi", p:75000, i:"👨‍⚕️"},
+    {n:"Dr. Zuhdi, Sp.OT", s:"Tulang (Ortopedi)", p:75000, i:"👨‍⚕️"},
+    {n:"Drg. Zulfirman", s:"Gigi", p:45000, i:"👨‍⚕️"},
+    
+    // Penunjang Medis
+    {n:"Dr. Daniel, Sp.Rad", s:"Radiologi", p:50000, i:"👨‍⚕️"},
+    {n:"Dr. Hafis, Sp.PK", s:"Patologi Klinik", p:50000, i:"👨‍⚕️"},
+    {n:"Dr. Tatia Alza, Sp.An", s:"Anestesi", p:50000, i:"👩‍⚕️"}, 
+    {n:"Dr. Safira", s:"Umum (IGD)", p:0, i:"👩‍⚕️"},           
+    {n:"Dr. Nana", s:"Umum (IGD)", p:0, i:"👩‍⚕️"}
+];
+
+const obats = ["Paracetamol", "Amoxicillin", "OBH Syrup", "Antasida Doen", "Vitamin C", "Vitamin D3", "Omeprazole", "Bodrex", "Panadol", "Degirol", "Promag", "Sangobion", "Neurobion", "Imboost", "Lansoprazole", "Amlodipine", "Metformin", "Simvastatin", "Ceterizine", "Asam Mefenamat", "Betadine", "Handsaplast", "Minyak Kayu Putih", "Counterpain", "Entrostop", "Oralit", "Sanaflu", "Siladex", "Insto", "Enervon-C"];
+
+const labs = [{n:"Cek Kolesterol", h:45000}, {n:"Cek Darah Lengkap", h:150000}, {n:"Cek Urine ", h:150000}];
+const rss = [{n:"RS Islam Ibnu Sina", a:"Sigli"}, {n:"RSUD TGK Abdullah Syafii", a:"Beureuneun"}, {n:"RS Citra Husada", a:"Sigli"}, {n:"RSUD TGK Chik Ditiro", a:"Sigli"}, {n:"RSU Mufid", a:"Sigli"}];
+
+function loginUser(){
+    let n = document.getElementById("uName").value;
+    if(n) { localStorage.setItem("user", n); startApp(); }
+}
+
+function startApp(){
+    document.getElementById("login").style.display = "none";
+    document.getElementById("labelUser").innerText = localStorage.getItem("user");
+    updateSaldo(); renderDocs(); renderShop(); renderRS(); renderLabs(); renderHistory();
+}
+
+function navigate(id){
+    document.querySelectorAll(".page").forEach(p => p.classList.remove("active"));
+    document.getElementById(id).classList.add("active");
+    document.getElementById("mainHeader").style.display = (id === 'home') ? "flex" : "none";
+    document.getElementById("bottomNav").style.display = (id === 'chat') ? "none" : "flex";
+}
+
+function renderDocs(){
+    document.getElementById("listDokter").innerHTML = docs.map(d => `<div class="card" onclick="startChat('${d.n}', ${d.p})"><div class="doc-profile">${d.i}</div><div class="doc-info"><b>${d.n}</b><small>${d.s}</small></div><button class="btn-chat">${d.p === 0 ? 'Free' : 'Rp'+d.p/1000+'k'}</button></div>`).join("");
+}
+
+function renderShop(){
+    document.getElementById("listObat").innerHTML = obats.map(o => `<div class="card"><div class="doc-info"><b>${o}</b><small>Rp 15.000</small></div><button class="btn-chat" onclick="buyItem('${o}', 15000)">Beli</button></div>`).join("");
+}
+
+function renderRS(){
+    document.getElementById("listRS").innerHTML = rss.map(r => `<div class="card"><div class="doc-info"><b>${r.n}</b><small>📍 ${r.a}</small></div><button class="btn-chat" onclick="openRS('${r.n}')">Pilih</button></div>`).join("");
+}
+
+function openRS(n){
+    const c = document.getElementById("rsContent");
+    c.innerHTML = `<h3>${n}</h3><button onclick="bookPoli('${n}')" style="background:var(--primary);color:white;">Daftar Poli Online</button><button onclick="bookKamar('${n}')">Reservasi Kamar</button><button onclick="closeModal('rsModal')">Batal</button>`;
+    document.getElementById("rsModal").style.display = "flex";
+}
+
+function bookPoli(rs){
+    let p = prompt("Masukkan Poli (Anak/Umum/Gigi/THT):");
+    if(!p) return;
+    orders.unshift({nama: `Poli ${p} - ${rs}`, alamat: "Digital Booking", tgl: new Date().toLocaleDateString()});
+    saveData();
+}
+
+function bookKamar(rs) {
+    // 1. Pilih Jenis Ruangan
+    let unit = prompt("Pilih Kelas Ruangan:\n1. Bangsal (Reguler)\n2. VIP\n3. ICU");
+    if (!unit) return;
+
+    // 2. Isi Nama Pasien
+    let namaP = prompt("Masukkan Nama Pasien:");
+    if (!namaP) return;
+
+    let infoTambahan = "";
+
+    // 3. Logika khusus berdasarkan pilihan ruangan
+    if (unit.toLowerCase().includes("bangsal") || unit === "1") {
+        // Jika pilih Bangsal, minta nomor BPJS
+        let noBpjs = prompt("Masukkan Nomor Kartu BPJS:");
+        if (!noBpjs) return;
+        infoTambahan = "Metode: BPJS (" + noBpjs + ")";
+    } else {
+        // Jika pilih selain Bangsal, minta jumlah hari dan info pembayaran
+        let lama = prompt("Rencana menginap berapa hari?");
+        if (!lama) return;
+        
+        let bayar = prompt("Pilih Metode Pembayaran:\n(Transfer Bank / E-Wallet / Tunai)");
+        if (!bayar) return;
+        
+        infoTambahan = "Durasi: " + lama + " hari | Bayar: " + bayar;
+    }
+
+    // 4. Isi Keluhan
+    let keluhan = prompt("Masukkan Sedikit Keluhan:");
+    if (!keluhan) return;
+
+    // Simpan ke Riwayat
+    orders.unshift({
+        nama: `Kamar ${unit} - ${rs}`,
+        alamat: `Pasien: ${namaP} | ${infoTambahan} | Keluhan: ${keluhan}`,
+        tgl: new Date().toLocaleDateString()
+    });
+    
+    saveData();
+    showNotif("Reservasi Berhasil!");
+}
+
+function startChat(n, p){
+    if(saldo < p) return showNotif("Saldo kurang!");
+    saldo -= p; updateSaldo();
+    document.getElementById("docTitle").innerText = n;
+    document.getElementById("chatBox").innerHTML = `<div class="msg bot">Halo! Saya ${n}, ada yang bisa dibantu?</div>`;
+    navigate('chat');
+}
+
+// Pastikan variabel ini ada di paling atas script kamu
+let chatStep = 0;
+
+function send() {
+    let v = document.getElementById("chatIn").value;
+    if (!v) return;
+    
+    const b = document.getElementById("chatBox");
+    const namaDokter = document.getElementById("docTitle").innerText; 
+    let pesanUser = v.toLowerCase();
+    
+    // 1. Tampilkan pesan kamu
+    b.innerHTML += `<div class="msg me">${v}</div>`;
+    document.getElementById("chatIn").value = "";
+    b.scrollTo(0, b.scrollHeight);
+
+    // 2. Simulasi Respon Dokter (Delay 1.2 detik)
+    setTimeout(() => {
+        let respon = "Ada lagi yang bisa saya bantu?"; // Default respon netral
+
+        // --- A. LOGIKA IGD (Prioritas Tinggi) ---
+        if (namaDokter.includes("IGD") || namaDokter.includes("Safira") || namaDokter.includes("Nana")) {
+            if (pesanUser.includes("pendarahan") || pesanUser.includes("kecelakaan")) {
+                respon = "Tolong tekan lukanya dengan kain bersih sekuat mungkin! Jangan dilepas sampai pendarahan melambat ya!";
+                chatStep = "igd_darah";
+            } 
+            else if (chatStep === "igd_darah" && pesanUser.includes("sudah")) {
+                respon = "Bagus! Sekarang segera larikan pasien ke RS terdekat untuk penanganan medis lebih lanjut. Jangan ditunda!";
+                chatStep = 0;
+            }
+            else if (pesanUser.includes("jatuh") || pesanUser.includes("kaki")) {
+                respon = "Hati-hati, ada kemungkinan cedera tulang atau saraf meskipun tidak ada luka luar. Segera larikan ke RS terdekat untuk rontgen!";
+                chatStep = 0;
+            }
+            else if (chatStep === 0) {
+                respon = "Halo, ini layanan IGD darurat. Mohon jelaskan kondisi pasien dengan singkat dan tenang.";
+                chatStep = 1;
+            } else {
+                respon = "Mohon segera jelaskan kondisi daruratnya, kami siap menangani.";
+            }
+        }
+
+        // --- B. DOKTER ANAK (Sp.A) ---
+        else if (namaDokter.includes("Sp.A")) {
+            if (pesanUser.includes("demam") || pesanUser.includes("muntah") || pesanUser.includes("panas")) {
+                respon = "Duh, bahaya itu Mom. Jika disertai muntah, dikhawatirkan si kecil dehidrasi. Segera bawa untuk rawat inap ya!";
+                chatStep = 0;
+            } 
+            else if (chatStep === 0) {
+                respon = "Halo juga Mom! Ada keluhan apa dengan si kecil hari ini?";
+                chatStep = 1;
+            } else if (chatStep === 1) {
+                respon = "Aduh kasihan ya si kecil. Berapa umur pasiennya dan sudah berapa lama gejalanya Mom?";
+                chatStep = 2;
+            } else if (chatStep === 2) {
+                respon = "Berdasarkan gejalanya, kemungkinan si kecil sedang tumbuh gigi. Itu hal yang wajar Mom.";
+                chatStep = 3;
+            } else if (chatStep === 3) {
+                respon = "Mom bisa kasih teether dingin. Kalau demam, kasih Paracetamol Drop sesuai dosis ya.";
+                chatStep = 0;
+            } else {
+                respon = "Ada yang bisa dibantu lagi untuk si kecil, Mom?";
+            }
+        }
+
+        // --- C. DOKTER JIWA (Sp.KJ) ---
+        else if (namaDokter.includes("Sp.KJ")) {
+            if (pesanUser.includes("gelisah") || pesanUser.includes("takut") || pesanUser.includes("tidur")) {
+                respon = "Gelisah sampai sulit tidur itu berat banget ya. Apa ada hal lain yang kamu rasakan atau dengar, sayang?";
+                chatStep = "jiwa_bisikan";
+            } 
+            else if (chatStep === "jiwa_bisikan" && (pesanUser.includes("bisikan") || pesanUser.includes("telinga"))) {
+                respon = "Sabar ya sayang, itu pasti sangat mengganggu. Aku saranin kita ketemu buat terapi biar kamu bisa istirahat tenang.";
+                chatStep = 0;
+            }
+            else if (pesanUser.includes("gemetar") || pesanUser.includes("bentakan")) {
+                respon = "Tenang ya, kamu aman di sini. Sejak kapan mulai merasa trauma kalau ada bentakan, sayang?";
+                chatStep = "jiwa_bentakan";
+            }
+            else if (chatStep === "jiwa_bentakan" && (pesanUser.includes("sulit") || pesanUser.includes("berhenti"))) {
+                respon = "Nggak apa-apa sayang, jangan dipaksa. Pelan-pelan kita pulihkan bareng ya. Fokus ke napas kamu.";
+                chatStep = 0;
+            }
+            else if (chatStep === 0) {
+                respon = "Halo. Sini cerita sama aku, apa yang lagi mengganjal di hati kamu, sayang?";
+                chatStep = 1;
+            }
+        }
+
+        // --- D. DOKTER KANDUNGAN (Sp.OG) ---
+        else if (namaDokter.includes("Sp.OG")) {
+            if (pesanUser.includes("9 bulan") || pesanUser.includes("hpl") || pesanUser.includes("mules")) {
+                respon = "Baik Ibu, di kondisi ini lebih baik Ibu segera ke RS terdekat untuk observasi lebih lanjut ya.";
+                chatStep = 0;
+            } 
+            else if (pesanUser.includes("mual") || pesanUser.includes("muntah")) {
+                respon = "Kalau boleh tahu, sudah berapa bulan usia kandungannya saat ini, Bu?";
+                chatStep = "og_mual_1";
+            } 
+            else if (chatStep === "og_mual_1" && pesanUser.includes("4 minggu")) {
+                respon = "Mual di trimester 1 memang wajar, Bu. Istirahat cukup dan tetap penuhi asupan nutrisi ya.";
+                chatStep = 0;
+            } 
+            else if (chatStep === 0) {
+                respon = "Selamat siang. Ada keluhan apa hari ini, Ibu?";
+                chatStep = 1;
+            }
+        }
+
+        // --- E. PENYAKIT DALAM (Sp.PD) ---
+        else if (namaDokter.includes("Sp.PD")) {
+            if (chatStep === 0) {
+                respon = "Selamat siang, Bapak/Ibu. Ada keluhan apa yang dirasakan saat ini?";
+                chatStep = 1;
+            } else if (chatStep === 1) {
+                if (pesanUser.includes("demam")) {
+                    respon = "Gejala ini bisa mengarah ke Tipes. Saya sarankan segera cek lab ke RS ya.";
+                } else {
+                    respon = "Kemungkinan ini GERD. Jaga pola makan dan hindari stres ya, Bapak/Ibu.";
+                }
+                chatStep = 0;
+            }
+        }
+
+        // --- F. LOGIKA TERIMA KASIH (Global) ---
+        if (pesanUser.includes("terima kasih") || pesanUser.includes("makasih") || pesanUser.includes("tengkyu") || pesanUser.includes("baik dok")) {
+            if (namaDokter.includes("Sp.A")) {
+                respon = "Sama-sama Mom! Semoga si kecil lekas sembuh. 🙏✨";
+            } else if (namaDokter.includes("Sp.KJ")) {
+                respon = "Sama-sama sayang. Istirahat ya, aku selalu ada di sini.";
+            } else {
+                respon = "Sama-sama, Bapak/Ibu. Semoga lekas sembuh dan sehat selalu. 🙏✨";
+            }
+            chatStep = 0;
+        }
+
+        // 3. Tampilkan pesan dokter dan scroll
+        b.innerHTML += `<div class="msg bot">${respon}</div>`;
+        b.scrollTo(0, b.scrollHeight);
+    }, 1200); 
+}
+function renderLabs(){
+    document.getElementById("listLabs").innerHTML = labs.map(l => `
+        <div class="card">
+            <div class="doc-info">
+                <b>${l.n}</b>
+                <small>Estimasi Hasil: 1 Hari</small><br>
+                <b>Rp ${l.h.toLocaleString()}</b>
+            </div>
+            <button class="btn-chat" onclick="pesanLab('${l.n}', ${l.h})">Pesan</button>
+        </div>`).join("");
+}
+function pesanLab(namaTes, harga) {
+    if (saldo < harga) return showNotif("Saldo tidak cukup!");
+
+    // 1. Buat daftar RS dari data 'rss' untuk ditampilkan di prompt
+    let daftarRS = rss.map((r, index) => (index + 1) + ". " + r.n).join("\n");
+    let pilihRS = prompt("Pilih Rumah Sakit untuk Cek Lab:\n" + daftarRS);
+    
+    if (!pilihRS) return;
+    
+    // Ambil nama RS berdasarkan pilihan user
+    let rsTerpilih = rss[parseInt(pilihRS) - 1] ? rss[parseInt(pilihRS) - 1].n : "RS Terdekat";
+
+    // 2. Tanya Alamat & WA
+    let lokasi = prompt("Masukkan Alamat Anda (untuk Home Service):");
+    if (!lokasi) return;
+
+    let waUser = prompt("Masukkan Nomor WhatsApp Anda:");
+    if (!waUser) return;
+
+    if (confirm(`Konfirmasi pembayaran Rp ${harga.toLocaleString()}?\nLokasi Tes: ${rsTerpilih}`)) {
+        saldo -= harga;
+        updateSaldo();
+
+        // 3. Simpan ke Riwayat
+        orders.unshift({
+            nama: `🔬 Lab: ${namaTes}`,
+            alamat: `RS: ${rsTerpilih} | Lokasi: ${lokasi}`,
+            tgl: new Date().toLocaleDateString()
+        });
+        saveData();
+
+        // 4. HUBUNGKAN KE WA ASLI
+        let nomorAdmin = "6285260684766"; // <--- Ganti nomor kamu beb
+        let pesan = `Halo Admin ${rsTerpilih}!%0A%0A` +
+                    `SAYA INGIN KONFIRMASI PESANAN LAB%0A` +
+                    `------------------------------------%0A` +
+                    `- *Tes*: ${namaTes}%0A` +
+                    `- *Nama Pasien*: ${localStorage.getItem("user")}%0A` +
+                    `- *Alamat*: ${lokasi}%0A` +
+                    `- *No. WA*: ${waUser}%0A` +
+                    `------------------------------------%0A` +
+                    `Mohon jadwal pengambilannya diproses.`;
+        
+        window.location.href = "https://api.whatsapp.com/send?phone=" + nomorAdmin + "&text=" + pesan;
+
+        showNotif("Menghubungkan ke " + rsTerpilih + "...");
+    }
+}
+
+function buyItem(namaObat, harga) {
+    if (saldo < harga) return showNotif("Saldo tidak cukup!");
+
+    // 1. Pilih Rumah Sakit (Lokasi Apotek)
+    let daftarRS = rss.map((r, index) => (index + 1) + ". " + r.n).join("\n");
+    let pilihRS = prompt("Pilih Apotek Rumah Sakit:\n" + daftarRS);
+    
+    if (!pilihRS) return;
+    let rsTerpilih = rss[parseInt(pilihRS) - 1] ? rss[parseInt(pilihRS) - 1].n : "Apotek Mitra";
+
+    // 2. Pilih Metode Pengiriman
+    let metode = prompt("Pilih Metode:\n1. Antar ke Rumah (Kurir)\n2. Ambil di " + rsTerpilih);
+    if (!metode) return;
+    
+    let jenisPengiriman = (metode === "1") ? "Antar ke Rumah" : "Ambil Sendiri";
+    let alamatKirim = "-";
+
+    // 3. Jika diantar, minta alamat
+    if (metode === "1") {
+        alamatKirim = prompt("Masukkan Alamat Lengkap Pengiriman:");
+        if (!alamatKirim) return;
+    }
+
+    // 4. Konfirmasi
+    if (confirm(`Beli ${namaObat}?\nLokasi: ${rsTerpilih}\nTotal: Rp ${harga.toLocaleString()}`)) {
+        saldo -= harga;
+        updateSaldo();
+
+        // 5. Simpan ke Riwayat
+        orders.unshift({
+            nama: `💊 Obat: ${namaObat}`,
+            alamat: `Apotek: ${rsTerpilih} | ${jenisPengiriman}`,
+            tgl: new Date().toLocaleDateString()
+        });
+        saveData();
+
+        // 6. Hubungkan ke WA
+        let nomorApotek = "6285200000000"; // Ganti nomor kamu beb
+        let pesan = `Halo Admin Apotek ${rsTerpilih}!%0A%0A` +
+                    `PESANAN OBAT BARU%0A` +
+                    `------------------------------------%0A` +
+                    `- *Obat*: ${namaObat}%0A` +
+                    `- *Pembeli*: ${localStorage.getItem("user")}%0A` +
+                    `- *Lokasi Apotek*: ${rsTerpilih}%0A` +
+                    `- *Metode*: ${jenisPengiriman}%0A` +
+                    `- *Alamat*: ${alamatKirim}%0A` +
+                    `------------------------------------%0A` +
+                    `Mohon segera diproses ya!`;
+        
+        window.location.href = "https://api.whatsapp.com/send?phone=" + nomorApotek + "&text=" + pesan;
+
+        showNotif("Pesanan dikirim ke " + rsTerpilih);
+    }
+}
+
+function saveData(){
+    localStorage.setItem("orders", JSON.stringify(orders));
+    renderHistory(); navigate('history'); showNotif("Berhasil!"); closeModal('rsModal');
+}
+
+function renderHistory(){
+    document.getElementById("listHistory").innerHTML = orders.map(o => `<div class="card"><div class="doc-info"><b>📦 ${o.nama}</b><small>${o.tgl} • ${o.alamat}</small></div></div>`).join("");
+}
+
+function updateSaldo(){ document.getElementById("saldoVal").innerText = "Rp " + saldo.toLocaleString(); }
+function openTopUp(){ document.getElementById("topupModal").style.display="flex"; }
+function addSaldo(j){ saldo += j; updateSaldo(); closeModal('topupModal'); showNotif("Saldo bertambah!"); }
+function closeModal(id){ document.getElementById(id).style.display="none"; }
+function showNotif(t){ const n = document.getElementById("notif"); n.innerText = t; n.style.display = "block"; setTimeout(() => n.style.display = "none", 2000); }
+function logout(){ localStorage.clear(); location.reload(); }
+window.onload = () => { if(localStorage.getItem("user")) startApp(); };
+
+// Fungsi untuk memulai chat dengan CS
+function startCSChat(topik) {
+    // 1. Tanya nama atau keluhan singkat untuk CS
+    let kendala = prompt("Jelaskan singkat kendala Anda mengenai " + topik + ":");
+    if (!kendala) return;
+
+    // 2. Hubungkan langsung ke WhatsApp Admin/CS
+    let nomorCS = "6285260684766"; // Ganti nomor kamu beb
+    let pesan = `Halo CS KonsulSehat!%0A%0ASaya butuh bantuan terkait *${topik}*.%0AKendala: ${kendala}%0ANama: ${localStorage.getItem("user")}`;
+    
+    // Opsional: Kamu bisa pilih mau buka halaman chat di app atau langsung ke WA
+    // Kita buat langsung ke WA biar konsisten sama fitur lainnya
+    window.location.href = "https://api.whatsapp.com/send?phone=" + nomorCS + "&text=" + pesan;
+}
+</script>
+</body>
+</html>
