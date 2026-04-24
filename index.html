@@ -409,20 +409,26 @@ function send() {
             }
         }
 
-        // --- E. PENYAKIT DALAM (Sp.PD) ---
-        else if (namaDokter.includes("Sp.PD")) {
-            if (chatStep === 0) {
-                respon = "Selamat siang, Bapak/Ibu. Ada keluhan apa yang dirasakan saat ini?";
-                chatStep = 1;
-            } else if (chatStep === 1) {
-                if (pesanUser.includes("demam")) {
-                    respon = "Gejala ini bisa mengarah ke Tipes. Saya sarankan segera cek lab ke RS ya.";
-                } else {
-                    respon = "Kemungkinan ini GERD. Jaga pola makan dan hindari stres ya, Bapak/Ibu.";
-                }
-                chatStep = 0;
-            }
+       // --- E. PENYAKIT DALAM (Sp.PD) ---
+else if (namaDokter.includes("Sp.PD")) {
+    if (chatStep === 0) {
+        respon = "Selamat siang, Bapak/Ibu. Ada keluhan apa yang dirasakan saat ini?";
+        chatStep = 1;
+    } else if (chatStep === 1) {
+        let pesanLower = pesanUser.toLowerCase(); // Biar huruf kecil/gede gak ngaruh
+
+        if (pesanLower.includes("demam")) {
+            respon = "Gejala ini bisa mengarah ke Tipes. Saya sarankan segera cek lab ke RS ya.";
+        } 
+        else if (pesanLower.includes("muntah") || pesanLower.includes("mual") || pesanLower.includes("perih")) {
+            respon = "Kemungkinan ini GERD atau masalah lambung. Jaga pola makan dan hindari stres ya, Bapak/Ibu.";
+        } 
+        else {
+            respon = "Saya mengerti keluhan Anda. Untuk diagnosa lebih pasti, disarankan pemeriksaan fisik langsung. Ada keluhan lain?";
         }
+        chatStep = 0; // Reset chat setelah kasih diagnosa
+    }
+}
 
         // --- F. LOGIKA TERIMA KASIH (Global) ---
         if (pesanUser.includes("terima kasih") || pesanUser.includes("makasih") || pesanUser.includes("tengkyu") || pesanUser.includes("baik dok")) {
