@@ -86,8 +86,17 @@
 </div>
 
 <div id="shop" class="page">
-    <header style="padding: 15px 0;"><button class="back-btn" onclick="navigate('home')">←</button><b>Apotik</b></header>
+    <header style="padding: 15px 0;">
+        <button class="back-btn" onclick="navigate('home')">←</button>
+        <b>Apotik</b>
+    </header>
+
     <div id="listObat"></div>
+
+    <!-- 👇 INI YANG KURANG -->
+    <button onclick="checkoutCart()" style="width:100%; padding:15px; background:#e52d27; color:white; border:none; border-radius:10px; margin-top:10px;">
+        🛒 Checkout Obat
+    </button>
 </div>
 
 <div id="hospital" class="page">
@@ -150,12 +159,45 @@
     <div onclick="logout()">👤<br>Keluar</div>
 </nav>
 
-<div id="topupModal" class="modal"><div class="modal-box"><h3>Top Up Saldo</h3><button onclick="addSaldo(50000)">Rp 50.000</button><button onclick="addSaldo(100000)">Rp 100.000</button><button onclick="closeModal('topupModal')">Batal</button></div></div>
+<div id="topupModal" class="modal">
+  <div class="modal-box">
+    <h3>Top Up Saldo</h3>
+
+    <select id="metodeTopup" style="width:100%; padding:10px; margin-top:10px;">
+      <option value="">Pilih Metode</option>
+      <option value="bank">Transfer Bank</option>
+      <option value="ewallet">E-Wallet</option>
+    </select>
+
+    <select id="bankTopup" style="width:100%; padding:10px; margin-top:10px;">
+      <option value="">Pilih Bank / E-Wallet</option>
+      <option>BCA</option>
+      <option>BRI</option>
+      <option>BNI</option>
+      <option>Mandiri</option>
+      <option>DANA</option>
+      <option>OVO</option>
+      <option>GoPay</option>
+    </select>
+
+    <input id="nominalTopup" type="number" placeholder="Masukkan nominal (contoh: 50000)"
+      style="width:100%; padding:10px; margin-top:10px; border:1px solid #ddd; border-radius:8px;">
+
+    <button onclick="prosesTopup()" style="width:100%; padding:12px; margin-top:10px; background:#e52d27; color:white; border:none; border-radius:8px;">
+      Konfirmasi Top Up
+    </button>
+
+    <button onclick="closeModal('topupModal')" style="width:100%; padding:12px; margin-top:10px;">
+      Batal
+    </button>
+  </div>
+</div>
 <div id="rsModal" class="modal"><div class="modal-box" id="rsContent"></div></div>
 
 <script>
 let saldo = 150000;
 let orders = JSON.parse(localStorage.getItem("orders") || "[]");
+let cart = [];
 
 const docs = [
     // Spesialis Penyakit Dalam (Internist)
@@ -229,7 +271,15 @@ function renderDocs(){
 }
 
 function renderShop(){
-    document.getElementById("listObat").innerHTML = obats.map(o => `<div class="card"><div class="doc-info"><b>${o}</b><small>Rp 15.000</small></div><button class="btn-chat" onclick="buyItem('${o}', 15000)">Beli</button></div>`).join("");
+    document.getElementById("listObat").innerHTML = obats.map(o => `
+        <div class="card">
+            <div class="doc-info">
+                <b>${o}</b>
+                <small>Rp 15.000</small>
+            </div>
+            <button class="btn-chat" onclick="addToCart('${o}', 15000)">+ Keranjang</button>
+        </div>
+    `).join("");
 }
 
 function renderRS(){
@@ -243,53 +293,83 @@ function openRS(n){
 }
 
 function bookPoli(rs){
-    let p = prompt("Masukkan Poli (Anak/Umum/Gigi/THT):");
-    if(!p) return;
-    orders.unshift({nama: `Poli ${p} - ${rs}`, alamat: "Digital Booking", tgl: new Date().toLocaleDateString()});
+    let poli = prompt("Masukkan Poli (Anak/Umum/Gigi/THT):");
+    if (!poli) return;
+
+    let nama = prompt("Masukkan Nama Pasien:");
+    if (!nama) return;
+
+    let keluhan = prompt("Masukkan Keluhan:");
+    if (!keluhan) return;
+
+    let order = {
+        nama: `🩺 Poli ${poli} - ${rs}`,
+        alamat: `Pasien: ${nama} | Keluhan: ${keluhan}`,
+        status: "Menunggu",
+        tgl: new Date().toLocaleDateString()
+    };
+
+    orders.unshift(order);
     saveData();
+    showNotif("Booking berhasil! Menunggu konfirmasi...");
+
+    simulateStatus(order);
 }
 
+function simulateStatus(order){
+    setTimeout(() => {
+        order.status = "Diproses";
+        saveData();
+    }, 3000);
+
+    setTimeout(() => {
+        order.status = "Diterima";
+        saveData();
+        showNotif("Booking kamu sudah diterima!");
+    }, 6000);
+}
 function bookKamar(rs) {
-    // 1. Pilih Jenis Ruangan
     let unit = prompt("Pilih Kelas Ruangan:\n1. Bangsal (Reguler)\n2. VIP\n3. ICU");
     if (!unit) return;
 
-    // 2. Isi Nama Pasien
     let namaP = prompt("Masukkan Nama Pasien:");
     if (!namaP) return;
 
     let infoTambahan = "";
 
-    // 3. Logika khusus berdasarkan pilihan ruangan
     if (unit.toLowerCase().includes("bangsal") || unit === "1") {
-        // Jika pilih Bangsal, minta nomor BPJS
         let noBpjs = prompt("Masukkan Nomor Kartu BPJS:");
         if (!noBpjs) return;
         infoTambahan = "Metode: BPJS (" + noBpjs + ")";
     } else {
-        // Jika pilih selain Bangsal, minta jumlah hari dan info pembayaran
         let lama = prompt("Rencana menginap berapa hari?");
         if (!lama) return;
-        
+
         let bayar = prompt("Pilih Metode Pembayaran:\n(Transfer Bank / E-Wallet / Tunai)");
         if (!bayar) return;
-        
+
         infoTambahan = "Durasi: " + lama + " hari | Bayar: " + bayar;
     }
 
-    // 4. Isi Keluhan
     let keluhan = prompt("Masukkan Sedikit Keluhan:");
     if (!keluhan) return;
 
-    // Simpan ke Riwayat
-    orders.unshift({
-        nama: `Kamar ${unit} - ${rs}`,
+    // ✅ BIKIN OBJECT ORDER
+    let order = {
+        nama: `🛏️ Kamar ${unit} - ${rs}`,
         alamat: `Pasien: ${namaP} | ${infoTambahan} | Keluhan: ${keluhan}`,
+        status: "Menunggu",
         tgl: new Date().toLocaleDateString()
-    });
-    
+    };
+
+    // ✅ MASUKIN KE RIWAYAT
+    orders.unshift(order);
     saveData();
-    showNotif("Reservasi Berhasil!");
+
+    showNotif("Reservasi berhasil! Menunggu konfirmasi...");
+
+    // ✅ STATUS OTOMATIS
+    simulateStatus(order);
 }
 
 function startChat(n, p){
@@ -461,104 +541,128 @@ function renderLabs(){
 function pesanLab(namaTes, harga) {
     if (saldo < harga) return showNotif("Saldo tidak cukup!");
 
-    // 1. Buat daftar RS dari data 'rss' untuk ditampilkan di prompt
     let daftarRS = rss.map((r, index) => (index + 1) + ". " + r.n).join("\n");
     let pilihRS = prompt("Pilih Rumah Sakit untuk Cek Lab:\n" + daftarRS);
-    
     if (!pilihRS) return;
-    
-    // Ambil nama RS berdasarkan pilihan user
-    let rsTerpilih = rss[parseInt(pilihRS) - 1] ? rss[parseInt(pilihRS) - 1].n : "RS Terdekat";
 
-    // 2. Tanya Alamat & WA
+    let rsTerpilih = rss[parseInt(pilihRS) - 1]?.n || "RS Terdekat";
+
+    // ✅ TAMBAHAN (biar realistis)
+    let namaPasien = prompt("Masukkan Nama Pasien:");
+    if (!namaPasien) return;
+
     let lokasi = prompt("Masukkan Alamat Anda (untuk Home Service):");
     if (!lokasi) return;
 
     let waUser = prompt("Masukkan Nomor WhatsApp Anda:");
     if (!waUser) return;
 
-    if (confirm(`Konfirmasi pembayaran Rp ${harga.toLocaleString()}?\nLokasi Tes: ${rsTerpilih}`)) {
+    if (confirm(`Konfirmasi pembayaran Rp ${harga.toLocaleString()}?\nTes: ${namaTes}\nRS: ${rsTerpilih}`)) {
         saldo -= harga;
         updateSaldo();
 
-        // 3. Simpan ke Riwayat
-        orders.unshift({
+        let order = {
             nama: `🔬 Lab: ${namaTes}`,
-            alamat: `RS: ${rsTerpilih} | Lokasi: ${lokasi}`,
+            alamat: `Pasien: ${namaPasien} | RS: ${rsTerpilih} | Lokasi: ${lokasi} | WA: ${waUser}`,
+            status: "Menunggu",
             tgl: new Date().toLocaleDateString()
-        });
+        };
+
+        orders.unshift(order);
         saveData();
 
-        // 4. HUBUNGKAN KE WA ASLI
-        let nomorAdmin = "6285260684766"; // <--- Ganti nomor kamu beb
-        let pesan = `Halo Admin ${rsTerpilih}!%0A%0A` +
-                    `SAYA INGIN KONFIRMASI PESANAN LAB%0A` +
-                    `------------------------------------%0A` +
-                    `- *Tes*: ${namaTes}%0A` +
-                    `- *Nama Pasien*: ${localStorage.getItem("user")}%0A` +
-                    `- *Alamat*: ${lokasi}%0A` +
-                    `- *No. WA*: ${waUser}%0A` +
-                    `------------------------------------%0A` +
-                    `Mohon jadwal pengambilannya diproses.`;
-        
-        window.location.href = "https://api.whatsapp.com/send?phone=" + nomorAdmin + "&text=" + pesan;
-
-        showNotif("Menghubungkan ke " + rsTerpilih + "...");
+        showNotif("Pesanan lab berhasil! Menunggu proses...");
+        simulateStatus(order);
     }
 }
 
-function buyItem(namaObat, harga) {
-    if (saldo < harga) return showNotif("Saldo tidak cukup!");
+// ✅ HARUS DI LUAR
+function simulateStatus(order){
+    setTimeout(() => {
+        order.status = "Diproses";
+        saveData();
+    }, 3000);
 
-    // 1. Pilih Rumah Sakit (Lokasi Apotek)
+    setTimeout(() => {
+        order.status = "Diterima";
+        saveData();
+        showNotif("Booking kamu sudah diterima!");
+    }, 6000);
+}
+	
+function renderHistory(){
+    document.getElementById("listHistory").innerHTML = orders.map(o => `
+        <div class="card">
+            <div class="doc-info">
+                <b>📦 ${o.nama}</b>
+                <small>${o.tgl} • ${o.alamat}</small><br>
+                <b>Status: ${o.status || "-"}</b>
+            </div>
+        </div>
+    `).join("");
+}
+
+function buyItem() {
+    // 1. Input banyak obat
+    let input = prompt("Masukkan obat & jumlah (contoh: Paracetamol:2, Vitamin C:1)");
+    if (!input) return;
+
+    let items = input.split(",");
+    let detail = [];
+    let totalHarga = 0;
+
+    items.forEach(i => {
+        let [nama, jumlah] = i.split(":");
+        if (!nama || !jumlah) return;
+
+        jumlah = parseInt(jumlah.trim());
+        nama = nama.trim();
+
+        let harga = 10000; // kamu bisa ganti harga per obat nanti
+        totalHarga += harga * jumlah;
+
+        detail.push(`${nama} (${jumlah}x)`);
+    });
+
+    if (saldo < totalHarga) return showNotif("Saldo tidak cukup!");
+
+    // 2. Pilih RS
     let daftarRS = rss.map((r, index) => (index + 1) + ". " + r.n).join("\n");
-    let pilihRS = prompt("Pilih Apotek Rumah Sakit:\n" + daftarRS);
-    
+    let pilihRS = prompt("Pilih Apotek:\n" + daftarRS);
     if (!pilihRS) return;
-    let rsTerpilih = rss[parseInt(pilihRS) - 1] ? rss[parseInt(pilihRS) - 1].n : "Apotek Mitra";
 
-    // 2. Pilih Metode Pengiriman
-    let metode = prompt("Pilih Metode:\n1. Antar ke Rumah (Kurir)\n2. Ambil di " + rsTerpilih);
+    let rsTerpilih = rss[parseInt(pilihRS) - 1]?.n || "Apotek Mitra";
+
+    // 3. Metode
+    let metode = prompt("1. Antar\n2. Ambil");
     if (!metode) return;
-    
-    let jenisPengiriman = (metode === "1") ? "Antar ke Rumah" : "Ambil Sendiri";
-    let alamatKirim = "-";
 
-    // 3. Jika diantar, minta alamat
+    let jenis = metode === "1" ? "Antar ke Rumah" : "Ambil Sendiri";
+    let alamat = "-";
+
     if (metode === "1") {
-        alamatKirim = prompt("Masukkan Alamat Lengkap Pengiriman:");
-        if (!alamatKirim) return;
+        alamat = prompt("Masukkan alamat:");
+        if (!alamat) return;
     }
 
     // 4. Konfirmasi
-    if (confirm(`Beli ${namaObat}?\nLokasi: ${rsTerpilih}\nTotal: Rp ${harga.toLocaleString()}`)) {
-        saldo -= harga;
+    if (confirm(`Beli:\n${detail.join("\n")}\nTotal: Rp ${totalHarga.toLocaleString()}`)) {
+        saldo -= totalHarga;
         updateSaldo();
 
-        // 5. Simpan ke Riwayat
-        orders.unshift({
-            nama: `💊 Obat: ${namaObat}`,
-            alamat: `Apotek: ${rsTerpilih} | ${jenisPengiriman}`,
+        let order = {
+            nama: "💊 Pembelian Obat",
+            alamat: `${detail.join(", ")} | ${jenis} | ${rsTerpilih}`,
+            status: "Menunggu",
             tgl: new Date().toLocaleDateString()
-        });
+        };
+
+        orders.unshift(order);
         saveData();
 
-        // 6. Hubungkan ke WA
-        let nomorApotek = "6285200000000"; // Ganti nomor kamu beb
-        let pesan = `Halo Admin Apotek ${rsTerpilih}!%0A%0A` +
-                    `PESANAN OBAT BARU%0A` +
-                    `------------------------------------%0A` +
-                    `- *Obat*: ${namaObat}%0A` +
-                    `- *Pembeli*: ${localStorage.getItem("user")}%0A` +
-                    `- *Lokasi Apotek*: ${rsTerpilih}%0A` +
-                    `- *Metode*: ${jenisPengiriman}%0A` +
-                    `- *Alamat*: ${alamatKirim}%0A` +
-                    `------------------------------------%0A` +
-                    `Mohon segera diproses ya!`;
-        
-        window.location.href = "https://api.whatsapp.com/send?phone=" + nomorApotek + "&text=" + pesan;
+        showNotif("Pesanan berhasil!");
 
-        showNotif("Pesanan dikirim ke " + rsTerpilih);
+        simulateStatus(order);
     }
 }
 
@@ -568,12 +672,42 @@ function saveData(){
 }
 
 function renderHistory(){
-    document.getElementById("listHistory").innerHTML = orders.map(o => `<div class="card"><div class="doc-info"><b>📦 ${o.nama}</b><small>${o.tgl} • ${o.alamat}</small></div></div>`).join("");
+    document.getElementById("listHistory").innerHTML = orders.map(o => `
+        <div class="card">
+            <div class="doc-info">
+                <b>📦 ${o.nama}</b>
+                <small>${o.tgl} • ${o.alamat}</small><br>
+                <b>Status: ${o.status || "-"}</b>
+            </div>
+        </div>
+    `).join("");
 }
 
 function updateSaldo(){ document.getElementById("saldoVal").innerText = "Rp " + saldo.toLocaleString(); }
 function openTopUp(){ document.getElementById("topupModal").style.display="flex"; }
-function addSaldo(j){ saldo += j; updateSaldo(); closeModal('topupModal'); showNotif("Saldo bertambah!"); }
+function prosesTopup(){
+    let metode = document.getElementById("metodeTopup").value;
+    let bank = document.getElementById("bankTopup").value;
+    let nominal = parseInt(document.getElementById("nominalTopup").value);
+
+    if(!metode) return showNotif("Pilih metode dulu!");
+    if(!bank) return showNotif("Pilih bank / e-wallet!");
+    if(!nominal || nominal < 10000) return showNotif("Minimal top up Rp10.000");
+
+    let confirmMsg = `Top Up:\n${bank} (${metode})\nNominal: Rp ${nominal.toLocaleString()}`;
+
+    if(confirm(confirmMsg)){
+        saldo += nominal;
+        updateSaldo();
+        closeModal('topupModal');
+        showNotif("Top up berhasil via " + bank);
+        
+        // reset input
+        document.getElementById("nominalTopup").value = "";
+        document.getElementById("metodeTopup").value = "";
+        document.getElementById("bankTopup").value = "";
+    }
+}
 function closeModal(id){ document.getElementById(id).style.display="none"; }
 function showNotif(t){ const n = document.getElementById("notif"); n.innerText = t; n.style.display = "block"; setTimeout(() => n.style.display = "none", 2000); }
 function logout(){ localStorage.clear(); location.reload(); }
@@ -593,6 +727,74 @@ function startCSChat(topik) {
     // Kita buat langsung ke WA biar konsisten sama fitur lainnya
     window.location.href = "https://api.whatsapp.com/send?phone=" + nomorCS + "&text=" + pesan;
 }
+function addToCart(nama, harga){
+    let jumlah = prompt(`Masukkan jumlah untuk ${nama}:`);
+    if (!jumlah) return;
+
+    jumlah = parseInt(jumlah);
+    if (isNaN(jumlah) || jumlah <= 0) return showNotif("Jumlah tidak valid!");
+
+    let item = cart.find(i => i.nama === nama);
+
+    if(item){
+        item.jumlah += jumlah;
+    } else {
+        cart.push({nama, harga, jumlah});
+    }
+
+    showNotif(`${nama} ditambahkan (${jumlah}x)`);
+}
+function checkoutCart(){
+    if(cart.length === 0) return showNotif("Keranjang kosong!");
+
+    let total = 0;
+    let detail = [];
+
+    cart.forEach(i => {
+        total += i.harga * i.jumlah;
+        detail.push(`${i.nama} (${i.jumlah}x)`);
+    });
+
+    if (saldo < total) return showNotif("Saldo tidak cukup!");
+
+    let daftarRS = rss.map((r, index) => (index + 1) + ". " + r.n).join("\n");
+    let pilihRS = prompt("Pilih Apotek:\n" + daftarRS);
+    if (!pilihRS) return;
+
+    let rsTerpilih = rss[parseInt(pilihRS) - 1]?.n || "Apotek";
+
+    let metode = prompt("1. Antar ke Rumah\n2. Ambil di Apotek");
+    if (!metode) return;
+
+    let jenis = metode === "1" ? "Antar ke Rumah" : "Ambil Sendiri";
+    let alamat = "-";
+
+    if (metode === "1") {
+        alamat = prompt("Masukkan alamat:");
+        if (!alamat) return;
+    }
+
+    if (confirm(`Checkout:\n${detail.join("\n")}\nTotal: Rp ${total.toLocaleString()}`)) {
+        saldo -= total;
+        updateSaldo();
+
+        let order = {
+            nama: "💊 Pembelian Obat",
+            alamat: `${detail.join(", ")} | ${jenis} | ${rsTerpilih} | ${alamat}`,
+            status: "Menunggu",
+            tgl: new Date().toLocaleDateString()
+        };
+
+        orders.unshift(order);
+        saveData();
+
+        showNotif("Pesanan berhasil!");
+        simulateStatus(order);
+
+        cart = [];
+    }
+}
+
 </script>
 </body>
 </html>
